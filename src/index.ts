@@ -89,26 +89,22 @@ const driver = new Builder()
         await driver.switchTo().window(lastPopupWindow);
     }
 
-    // .time_cur 과 .time_tol 요소의 값을 획득하고 둘이 같을 때 까지 기다린다.
-    await driver.wait(async () => {
-        const timeCur = await driver
-            .findElement(By.css('.time_cur'))
-            .then((element) => element.getText());
-        const timeTol = await driver
-            .findElement(By.css('.time_tol'))
-            .then((element) => element.getText());
+    // get document.querySelector("iframe[name='contents']").contentDocument;
+    const iframe = await driver.findElement(By.css('iframe[name="contents"]'));
+    const iframeDocument = await driver
+        .switchTo()
+        .frame(iframe)
+        .then(() => driver.findElement(By.css('body')));
 
-        if (timeCur === timeTol) {
-            // .next_tooltip 클래스 요소가 display: none; 이 아니면,
-            // .next 요소를 찾아서 클릭한다.
-            await driver
-                .findElement(By.css('.next_tooltip'))
-                .then((element) => element.getCssValue('display'))
-                .then((display) => {
-                    if (display !== 'none') {
-                        driver.findElement(By.css('.next')).click();
-                    }
-                });
-        }
-    }, 1000 * 60 * 60 * 24);
+    // .next_tooltip의 style 중에 display: block 이 될때까지 기다린다.
+    await iframeDocument
+        .findElement(By.css('.next_tooltip'))
+        .then((element) => {
+            return driver.wait(until.elementIsVisible(element), 10000 * 2);
+        });
+
+    // iframe[name="contents"] 에서 .next 버튼을 찾아서 클릭한다.
+    await iframeDocument
+        .findElement(By.css('.next'))
+        .then((element) => element.click());
 })();
