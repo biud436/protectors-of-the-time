@@ -36,13 +36,17 @@
     "doc:publish": "gh-pages -m \"[ci skip] Updates\" -d build/docs",
     "version": "standard-version",
     "reset-hard": "git clean -dfx && git reset --hard && yarn",
-    "prepare-release": "run-s reset-hard test cov:check doc:html version doc:publish"
+    "prepare-release": "run-s reset-hard test cov:check doc:html version doc:publish",
+    "start": "yarn ts-node src/index.ts"
   },
   "engines": {
     "node": ">=10"
   },
   "dependencies": {
-    "@bitauth/libauth": "^1.17.1"
+    "@bitauth/libauth": "^1.17.1",
+    "@types/selenium-webdriver": "^4.1.6",
+    "dotenv": "^16.0.3",
+    "selenium-webdriver": "^4.5.0"
   },
   "devDependencies": {
     "@ava/typescript": "^1.1.1",
@@ -50,6 +54,7 @@
     "@typescript-eslint/eslint-plugin": "^4.0.1",
     "@typescript-eslint/parser": "^4.0.1",
     "ava": "^3.12.1",
+    "chromedriver": "^106.0.1",
     "codecov": "^3.5.0",
     "cspell": "^4.1.0",
     "cz-conventional-changelog": "^3.3.0",
@@ -64,7 +69,7 @@
     "open-cli": "^6.0.1",
     "prettier": "^2.1.1",
     "standard-version": "^9.0.0",
-    "ts-node": "^9.0.0",
+    "ts-node": "^10.9.1",
     "typedoc": "^0.19.0",
     "typescript": "^4.0.2"
   },
