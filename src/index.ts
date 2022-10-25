@@ -9,6 +9,7 @@ const driver = new Builder()
         browserName: 'chrome',
         chromeOptions: {
             args: ['--headless', '--disable-gpu', '--window-size=1280,1024'],
+            position: '300,0',
         },
     })
     .build();
@@ -47,6 +48,7 @@ const driver = new Builder()
     // await driver.switchTo().alert().accept();
 
     // 나의 수강실 'https://general.ipacademy.net/servlet/UsrKisuController?cmd=4&ms=466&sd=IP&CT=2&aspseq=1'로 이동
+
     await driver.get(
         'https://general.ipacademy.net/servlet/UsrKisuController?cmd=4&ms=466&sd=IP&CT=2&aspseq=1'
     );
@@ -81,15 +83,47 @@ const driver = new Builder()
     console.log(elements);
 
     for (const element of elements) {
-        await driver.sleep(100);
+        await driver.sleep(1000);
 
-        await element.click();
+        const elementText = await element.getText();
 
-        // 3초 기다린다.
-        await driver.sleep(3000);
+        console.log(elementText + '체크 중...');
+
+        try {
+            // a의 부모인 td 선택하고 그 부모인 tr 선택
+            const tr = await element
+                .findElement(By.xpath('..'))
+                .findElement(By.xpath('..'));
+
+            console.log(`tr이 선택되었습니다 : ${await tr.getText()}`);
+
+            // 5번째 td의 텍스트를 찾는다
+            const td = await tr.findElement(By.xpath('td[5]'));
+
+            // 진행률 td 선택
+            const progressTd = td;
+
+            // 진행률 td의 텍스트를 가져온다.
+            const progressText = await progressTd.getText();
+
+            console.log(`진행률 : ${progressText}`);
+
+            if (progressText.includes('100%')) {
+                console.log(
+                    `${await element.getText()} 이미 수강 완료되었습니다.`
+                );
+                continue;
+            }
+
+            await element.click();
+
+            // 3초 기다린다.
+            await driver.sleep(3000);
+        } catch (e) {
+            console.warn(e);
+        }
 
         // 마지막 팝업 윈도우에 포커스를 옮긴다.
-
         const windows = await driver.wait(driver.getAllWindowHandles());
         console.log(windows);
         await driver.switchTo().window(windows[2]);
@@ -121,7 +155,7 @@ const driver = new Builder()
                 // time_cur
                 // time_tol
 
-                const timeTol = await driver
+                let timeTol = await driver
                     .findElement(By.className('time_tol'))
                     .getText();
 
@@ -137,27 +171,47 @@ const driver = new Builder()
                     const timeCur = await driver
                         .findElement(By.className('time_cur'))
                         .getText();
+                    timeTol = await driver
+                        .findElement(By.className('time_tol'))
+                        .getText();
+
+                    const page_current = await driver
+                        .findElement(By.className('page_current'))
+                        .getText();
+
+                    const page_total = await driver
+                        .findElement(By.className('page_total'))
+                        .getText();
+
+                    console.log(
+                        `현재 페이지 : ${page_current} / ${page_total} | 현재 시간 : ${timeCur} / ${timeTol}`
+                    );
 
                     if (timeCur === timeTol) {
-                        await driver
-                            .findElement(By.className('btn_next'))
-                            .click();
-                        return true;
+                        await driver.sleep(1000);
+
+                        const btnNext = await driver.wait(
+                            until.elementLocated(By.className('next_tooltip')),
+                            10000
+                        );
+
+                        if (btnNext) {
+                            await btnNext.click();
+                            return true;
+                        } else {
+                            await driver.sleep(1000);
+                            return false;
+                        }
                     }
 
                     return false;
                 });
 
                 // .next 태그를 클릭
-                if (i < +pageTotal - 1) {
+                if (i < +pageTotal) {
                     await driver.findElement(By.className('next')).click();
                 } else {
-                    try {
-                        // alert이 뜨면 자동으로 확인 버튼
-                        await driver.switchTo().alert().accept();
-                    } catch (e: any) {
-                        console.warn(e);
-                    }
+                    break;
                 }
             }
 
