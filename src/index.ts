@@ -71,40 +71,101 @@ const driver = new Builder()
     );
 
     // 팝업 윈도우에서 By.css("div[name*='ItemList']") 요소의 td > a 요소를 찾아서 차례대로 클릭한다.
-    await driver
-        .findElement(By.css("div[name*='ItemList']"))
-        .then((element) => element.findElement(By.css('td > a')))
-        .then((element) => {
-            element.click();
+    const itemList = await driver.findElement(By.css("div[name*='ItemList']"));
+
+    const elements = await itemList.findElements(By.css('td > a'));
+
+    // 3초 기다린다.
+    await driver.sleep(3000);
+
+    console.log(elements);
+
+    for (const element of elements) {
+        await driver.sleep(100);
+
+        await element.click();
+
+        // 3초 기다린다.
+        await driver.sleep(3000);
+
+        // 마지막 팝업 윈도우에 포커스를 옮긴다.
+
+        const windows = await driver.wait(driver.getAllWindowHandles());
+        console.log(windows);
+        await driver.switchTo().window(windows[2]);
+
+        // iframe 찾기
+        // iframe으로 이동
+        await driver
+            .switchTo()
+            .frame(driver.findElement(By.xpath(`\/\/*[@id="contents"]`)));
+
+        const pageTotal = await driver
+            .findElement(By.className('page_total'))
+            .getText();
+
+        await driver.wait(async () => {
+            for (let i = 0; i < +pageTotal; i++) {
+                const pageCurrent = await driver
+                    .findElement(By.className('page_current'))
+                    .getText();
+                console.log(pageCurrent);
+                await driver.sleep(1000);
+                await driver.wait(
+                    until.elementLocated(
+                        By.xpath(`\/\/*[@id="fs-footer"]/div/div[2]`)
+                    ),
+                    30000
+                );
+
+                // time_cur
+                // time_tol
+
+                const timeTol = await driver
+                    .findElement(By.className('time_tol'))
+                    .getText();
+
+                await driver.sleep(500);
+
+                if (timeTol === '00:00') {
+                    await driver.sleep(1000);
+                    await driver
+                        .findElement(
+                            By.xpath(`\/\/*[@id="fs-footer"]/div/div[2]`)
+                        )
+                        .click();
+                }
+
+                await driver.wait(async () => {
+                    const timeCur = await driver
+                        .findElement(By.className('time_cur'))
+                        .getText();
+
+                    if (timeCur === timeTol) {
+                        await driver
+                            .findElement(By.className('btn_next'))
+                            .click();
+                        return true;
+                    }
+                });
+
+                // .next 태그를 클릭
+                if (i < +pageTotal - 1) {
+                    await driver.findElement(By.className('next')).click();
+                } else {
+                    try {
+                        // alert이 뜨면 자동으로 확인 버튼
+                        await driver.switchTo().alert().accept();
+                    } catch (e: any) {
+                        console.warn(e);
+                    }
+                }
+            }
+
+            await driver.sleep(3000);
         });
 
-    // 마지막 팝업 윈도우에 포커스를 옮긴다.
-    const lastPopupWindow = await driver
-        .getAllWindowHandles()
-        .then((handles) => {
-            return handles[2];
-        });
-
-    if (lastPopupWindow) {
-        await driver.switchTo().window(lastPopupWindow);
+        await driver.sleep(1000);
+        await driver.close();
     }
-
-    // get document.querySelector("iframe[name='contents']").contentDocument;
-    const iframe = await driver.findElement(By.css('iframe[name="contents"]'));
-    const iframeDocument = await driver
-        .switchTo()
-        .frame(iframe)
-        .then(() => driver.findElement(By.css('body')));
-
-    // .next_tooltip의 style 중에 display: block 이 될때까지 기다린다.
-    await iframeDocument
-        .findElement(By.css('.next_tooltip'))
-        .then((element) => {
-            return driver.wait(until.elementIsVisible(element), 10000 * 2);
-        });
-
-    // iframe[name="contents"] 에서 .next 버튼을 찾아서 클릭한다.
-    await iframeDocument
-        .findElement(By.css('.next'))
-        .then((element) => element.click());
 })();
