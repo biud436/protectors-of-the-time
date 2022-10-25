@@ -129,13 +129,10 @@ const driver = new Builder()
 
                 if (timeTol === '00:00') {
                     await driver.sleep(1000);
-                    await driver
-                        .findElement(
-                            By.xpath(`\/\/*[@id="fs-footer"]/div/div[2]`)
-                        )
-                        .click();
                 }
 
+                // For a webdriver.Condition or function, the wait will repeatedly evaluate the condition until it returns a truthy value.
+                // true가 나올때 까지 반복적으로 평가합니다.
                 await driver.wait(async () => {
                     const timeCur = await driver
                         .findElement(By.className('time_cur'))
@@ -147,6 +144,8 @@ const driver = new Builder()
                             .click();
                         return true;
                     }
+
+                    return false;
                 });
 
                 // .next 태그를 클릭
