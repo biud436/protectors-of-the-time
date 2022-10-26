@@ -1,6 +1,6 @@
 import 'chromedriver';
 import * as dotenv from 'dotenv';
-import { Builder, By, until } from 'selenium-webdriver';
+import { Builder, By, ThenableWebDriver, until } from 'selenium-webdriver';
 
 dotenv.config();
 
@@ -13,6 +13,26 @@ const driver = new Builder()
         },
     })
     .build();
+
+/**
+ * 수강중인 강의가 있는지 확인합니다.
+ */
+//@ts-ignore
+async function isEnrolledLecture(_driver: ThenableWebDriver) {
+    const target = '/images/usr/ip/cm/btn/btn_no_complete.gif';
+
+    const elements = await _driver.findElements(
+        By.xpath(`//img[@src="${target}"]`)
+    );
+
+    let isEnrolled = false;
+
+    if (elements.length > 0) {
+        isEnrolled = true;
+    }
+
+    return isEnrolled;
+}
 
 (async () => {
     await driver.get('https://general.ipacademy.net/servlet/MainController');
@@ -128,97 +148,120 @@ const driver = new Builder()
         console.log(windows);
         await driver.switchTo().window(windows[2]);
 
+        await driver.sleep(1000);
         // iframe 찾기
         // iframe으로 이동
         await driver
             .switchTo()
             .frame(driver.findElement(By.xpath(`\/\/*[@id="contents"]`)));
 
+        await driver.sleep(1000);
+
         const pageTotal = await driver
             .findElement(By.className('page_total'))
             .getText();
 
-        await driver.wait(async () => {
-            for (let i = 0; i < +pageTotal; i++) {
-                const pageCurrent = await driver
-                    .findElement(By.className('page_current'))
-                    .getText();
-                console.log(pageCurrent);
+        for (let i = 0; i < +pageTotal; i++) {
+            const pageCurrent = await driver
+                .findElement(By.className('page_current'))
+                .getText();
+            console.log(`%d / %d`, pageCurrent, pageTotal);
+            await driver.sleep(1000);
+            await driver.wait(
+                until.elementLocated(
+                    By.xpath(`\/\/*[@id="fs-footer"]/div/div[2]`)
+                ),
+                30000
+            );
+
+            // time_cur
+            // time_tol
+
+            let timeTol = await driver
+                .findElement(By.className('time_tol'))
+                .getText();
+
+            await driver.sleep(500);
+
+            if (timeTol === '00:00') {
                 await driver.sleep(1000);
-                await driver.wait(
-                    until.elementLocated(
-                        By.xpath(`\/\/*[@id="fs-footer"]/div/div[2]`)
-                    ),
-                    30000
-                );
+            }
 
-                // time_cur
-                // time_tol
+            let page_current: any = 1;
 
-                let timeTol = await driver
+            // For a webdriver.Condition or function, the wait will repeatedly evaluate the condition until it returns a truthy value.
+            // true가 나올때 까지 반복적으로 평가합니다.
+            let done = false;
+            while (!done) {
+                await driver.sleep(1500);
+                const timeCur = await driver
+                    .findElement(By.className('time_cur'))
+                    .getText();
+                timeTol = await driver
                     .findElement(By.className('time_tol'))
                     .getText();
 
-                await driver.sleep(500);
+                page_current = await driver
+                    .findElement(By.className('page_current'))
+                    .getText();
 
-                if (timeTol === '00:00') {
+                const page_total = await driver
+                    .findElement(By.className('page_total'))
+                    .getText();
+
+                console.log(
+                    `현재 페이지 : ${page_current} / ${page_total} | 현재 시간 : ${timeCur} / ${timeTol}`
+                );
+
+                // TODO: 디버깅 용
+                // if (+page_current < +page_total) {
+                //     await driver.sleep(1000);
+                //     await driver.findElement(By.className('next')).click();
+                //     continue;
+                // }
+
+                if (timeCur === timeTol) {
                     await driver.sleep(1000);
-                }
 
-                // For a webdriver.Condition or function, the wait will repeatedly evaluate the condition until it returns a truthy value.
-                // true가 나올때 까지 반복적으로 평가합니다.
-                await driver.wait(async () => {
-                    const timeCur = await driver
-                        .findElement(By.className('time_cur'))
-                        .getText();
-                    timeTol = await driver
-                        .findElement(By.className('time_tol'))
-                        .getText();
-
-                    const page_current = await driver
-                        .findElement(By.className('page_current'))
-                        .getText();
-
-                    const page_total = await driver
-                        .findElement(By.className('page_total'))
-                        .getText();
-
-                    console.log(
-                        `현재 페이지 : ${page_current} / ${page_total} | 현재 시간 : ${timeCur} / ${timeTol}`
+                    const btnNext = driver.findElement(
+                        By.className('next_tooltip')
                     );
 
-                    if (timeCur === timeTol) {
-                        await driver.sleep(1000);
-
-                        const btnNext = await driver.wait(
-                            until.elementLocated(By.className('next_tooltip')),
-                            10000
-                        );
-
-                        if (btnNext) {
-                            await btnNext.click();
-                            return true;
-                        } else {
-                            await driver.sleep(1000);
-                            return false;
-                        }
+                    if (+page_current === +page_total) {
+                        console.log('마지막 페이지 입니다.');
+                        await driver.findElement(By.className('page_current'));
+                        done = true;
                     }
 
-                    return false;
-                });
+                    if (+page_current === +page_total - 1) {
+                        await driver.findElement(By.className('next')).click();
+                    }
 
-                // .next 태그를 클릭
-                if (i < +pageTotal) {
-                    await driver.findElement(By.className('next')).click();
-                } else {
-                    break;
+                    if (await btnNext.isDisplayed()) {
+                        console.log(+page_current);
+                        console.log(+page_total);
+                        if (+page_current < +page_total) {
+                            await driver
+                                .findElement(By.className('next'))
+                                .click();
+                        }
+                    } else {
+                        await driver.sleep(1000);
+                    }
                 }
             }
 
-            await driver.sleep(3000);
-        });
+            console.log('페이지 루프 종료');
+            console.log(`-- ${i} / ${pageTotal} --`);
 
-        await driver.sleep(1000);
+            if (+page_current === +pageTotal) {
+                console.log('다른 강의로 이동합니다.');
+                break;
+            }
+        }
+
+        await driver.sleep(3000);
         await driver.close();
+        await driver.switchTo().window(windows[1]);
     }
 })();
