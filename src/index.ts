@@ -1,3 +1,6 @@
+/* eslint-disable no-useless-escape */
+/* eslint-disable functional/no-let */
+/* eslint-disable functional/no-loop-statement */
 import 'chromedriver';
 import * as dotenv from 'dotenv';
 import { Builder, By, ThenableWebDriver, until } from 'selenium-webdriver';
