@@ -1,0 +1,57 @@
+<div class='container'>
+    <div class='nav'>
+        <div class='col-12'>
+            <h2>매크로 서버</h2>
+            <button class='btn btn-primary' onclick='startServer()'>
+                매크로 시작
+            </button>
+        </div>
+    </div>
+    <div class="card mt-3">
+        <div class="row" id="logger">
+
+        </div>
+    </div>
+</div>
+<script>
+    const MAX_OF_LOG = 50;
+
+    function startServer() { 
+        fetch('/api/start', {
+            method: "get",
+            headers: {
+                "Content-Type": "application/json"
+            }
+        })
+        .then(res => res.json())
+        .then(res => {
+            console.log(res);
+        })
+        .catch(err => {
+            console.warn(err);
+        })
+    }
+
+    function appendLog(log) {
+        const logger = document.getElementById('logger');
+        const div = document.createElement('div');
+        div.className = 'col-12';
+        div.innerHTML = log;
+        logger.appendChild(div);
+
+        if (logger.childElementCount > MAX_OF_LOG) {
+            logger.removeChild(logger.firstChild);
+        }
+
+        window.scrollTo(0, document.body.scrollHeight);
+    }
+
+    const socket = io();
+    socket.on('connect', (u) => {
+        appendLog('서버에 연결되었습니다.');
+    });
+    socket.on('log', (message) => {
+        appendLog(message);
+    });
+        
+</script>

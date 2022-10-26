@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable no-useless-escape */
-/* eslint-disable functional/no-let */
-/* eslint-disable functional/no-loop-statement */
 import 'chromedriver';
+import 'reflect-metadata';
 import * as dotenv from 'dotenv';
 import { Builder, By, ThenableWebDriver, until } from 'selenium-webdriver';
+import { io } from 'socket.io-client';
 
 dotenv.config();
 
@@ -17,34 +18,73 @@ const driver = new Builder()
     })
     .build();
 
-/**
- * 수강중인 강의가 있는지 확인합니다.
- */
-// @ts-ignore
-async function isEnrolledLecture(_driver: ThenableWebDriver) {
-    const target = '/images/usr/ip/cm/btn/btn_no_complete.gif';
+class SocketClient {
+    public socket = io('http://localhost:3000', {
+        transports: ['polling', 'websocket'],
+        autoConnect: false,
+    });
 
-    const elements = await _driver.findElements(
-        By.xpath(`//img[@src="${target}"]`)
-    );
+    constructor() {
+        this.socket.connect();
 
-    let isEnrolled = false;
-
-    if (elements.length > 0) {
-        isEnrolled = true;
+        this.socket.on('connect', () => {
+            this.socket.emit('log', '크롬 드라이버에 연결되었습니다.');
+        });
+        this.socket.on('disconnect', () => {
+            this.socket.emit('log', '크롬 드라이버와 연결이 끊겼습니다.');
+        });
     }
 
-    return isEnrolled;
-}
-
-// @ts-ignore
-async function alertWindowBlock(_driver: ThenableWebDriver) {
-    const alertWindow = await _driver.switchTo().alert();
-    await alertWindow.accept();
+    send(logMessage: any) {
+        this.socket.emit('log', logMessage);
+    }
+    warn(logMessage: any) {
+        this.send(logMessage);
+    }
+    log(logMessage: any) {
+        this.send(logMessage);
+    }
 }
 
 class HostClient {
-    // @ts-ignore
+    public socketClient = new SocketClient();
+
+    /**
+     * 수강 중인 강의 목록을 가져온다.
+     *
+     * @param _driver
+     * @returns
+     */
+    async isEnrolledLecture(_driver: ThenableWebDriver) {
+        const target = '/images/usr/ip/cm/btn/btn_no_complete.gif';
+
+        const elements = await _driver.findElements(
+            By.xpath(`//img[@src="${target}"]`)
+        );
+
+        let isEnrolled = false;
+
+        if (elements.length > 0) {
+            isEnrolled = true;
+        }
+
+        return isEnrolled;
+    }
+
+    /**
+     * 경고창을 자동으로 닫는다.
+     * @param _driver
+     */
+    async alertWindowBlock(_driver: ThenableWebDriver) {
+        const alertWindow = await _driver.switchTo().alert();
+        await alertWindow.accept();
+    }
+
+    /**
+     * 요소가 존재하지 않을 때 셀레니움 오류를 제거한다.
+     * @param _selector
+     * @returns
+     */
     async safeFindElement(_selector: By) {
         let element = null;
 
@@ -138,7 +178,7 @@ class HostClient {
 
             const elementText = await element.getText();
 
-            console.log(elementText + '체크 중...');
+            this.socketClient.log(elementText + '체크 중...');
 
             try {
                 // a의 부모인 td 선택하고 그 부모인 tr 선택
@@ -146,7 +186,9 @@ class HostClient {
                     .findElement(By.xpath('..'))
                     .findElement(By.xpath('..'));
 
-                console.log(`tr이 선택되었습니다 : ${await tr.getText()}`);
+                this.socketClient.log(
+                    `tr이 선택되었습니다 : ${await tr.getText()}`
+                );
 
                 // 5번째 td의 텍스트를 찾는다
                 const td = await tr.findElement(By.xpath('td[5]'));
@@ -157,10 +199,10 @@ class HostClient {
                 // 진행률 td의 텍스트를 가져온다.
                 const progressText = await progressTd.getText();
 
-                console.log(`진행률 : ${progressText}`);
+                this.socketClient.log(`진행률 : ${progressText}`);
 
                 if (progressText.includes('100%')) {
-                    console.log(
+                    this.socketClient.log(
                         `${await element.getText()} 이미 수강 완료되었습니다.`
                     );
                     continue;
@@ -171,12 +213,12 @@ class HostClient {
                 // 3초 기다린다.
                 await driver.sleep(3000);
             } catch (e) {
-                console.warn(e);
+                this.socketClient.warn(e);
             }
 
             // 마지막 팝업 윈도우에 포커스를 옮긴다.
             const windows = await driver.wait(driver.getAllWindowHandles());
-            console.log(windows);
+            this.socketClient.log(windows);
             await driver.switchTo().window(windows[2]);
 
             await driver.sleep(1000);
@@ -196,7 +238,7 @@ class HostClient {
                 const pageCurrent = await driver
                     .findElement(By.className('page_current'))
                     .getText();
-                console.log(`%d / %d`, pageCurrent, pageTotal);
+                this.socketClient.log(`${pageCurrent} / ${pageTotal}`);
                 await driver.sleep(1000);
                 await driver.wait(
                     until.elementLocated(
@@ -238,7 +280,7 @@ class HostClient {
                         .findElement(By.className('page_total'))
                         .getText();
 
-                    console.log(
+                    this.socketClient.log(
                         `현재 페이지 : ${page_current} / ${page_total} | 현재 시간 : ${timeCur} / ${timeTol}`
                     );
 
@@ -257,7 +299,7 @@ class HostClient {
                         );
 
                         if (+page_current === +page_total) {
-                            console.log('마지막 페이지 입니다.');
+                            this.socketClient.log('마지막 페이지 입니다.');
                             await driver.findElement(
                                 By.className('page_current')
                             );
@@ -271,8 +313,8 @@ class HostClient {
                         }
 
                         if (await btnNext.isDisplayed()) {
-                            console.log(+page_current);
-                            console.log(+page_total);
+                            this.socketClient.log(+page_current);
+                            this.socketClient.log(+page_total);
                             if (+page_current < +page_total) {
                                 await driver
                                     .findElement(By.className('next'))
@@ -284,11 +326,11 @@ class HostClient {
                     }
                 }
 
-                console.log('페이지 루프 종료');
-                console.log(`-- ${i} / ${pageTotal} --`);
+                this.socketClient.log('페이지 루프 종료');
+                this.socketClient.log(`-- ${i} / ${pageTotal} --`);
 
                 if (+page_current === +pageTotal) {
-                    console.log('다른 강의로 이동합니다.');
+                    this.socketClient.log('다른 강의로 이동합니다.');
                     break;
                 }
             }
