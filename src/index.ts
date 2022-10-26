@@ -43,20 +43,20 @@ async function alertWindowBlock(_driver: ThenableWebDriver) {
     await alertWindow.accept();
 }
 
-// @ts-ignore
-async function safeFindElement(_driver: ThenableWebDriver, _selector: By) {
-    let element = null;
+class HostClient {
+    // @ts-ignore
+    async safeFindElement(_selector: By) {
+        let element = null;
 
-    try {
-        element = await _driver.findElement(_selector);
-    } catch (e) {
-        console.log('safeFindElement', e);
+        try {
+            element = await driver.findElement(_selector);
+        } catch (e) {
+            console.log('safeFindElement', e);
+        }
+
+        return element;
     }
 
-    return element;
-}
-
-class HostClient {
     async start() {
         await driver.get(
             'https://general.ipacademy.net/servlet/MainController'
@@ -65,7 +65,9 @@ class HostClient {
         await driver.wait(until.elementLocated(By.id('sso.ID')), 10000);
 
         // sso.ID 요소 찾아서 입력
-        await driver.findElement(By.id('sso.ID')).sendKeys(process.env.ID);
+        await (
+            await this.safeFindElement(By.id('sso.ID'))
+        ).sendKeys(process.env.ID);
         // sso.PW 요소 찾아서 입력
         await driver.findElement(By.id('sso.PW')).sendKeys(process.env.PW);
         // 'btn_login' 클래스 요소 찾아서 클릭
