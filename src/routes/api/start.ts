@@ -5,7 +5,7 @@ import express from 'express';
 
 export const router = express.Router();
 router.get('/', (_req, _res) => {
-    const child = cp.spawn('yarn', ['start'], {
+    const child = cp.exec('yarn start', {
         cwd: path.resolve(__dirname, '..', '..', '..'),
     });
 
@@ -17,7 +17,13 @@ router.get('/', (_req, _res) => {
         console.error(data.toString());
     });
 
-    child.unref();
+    child.on('close', (code) => {
+        console.log(`child process exited with code ${code}`);
+    });
+
+    process.on('exit', () => {
+        child.kill();
+    });
 
     _res.status(200).json({
         message: 'success',
