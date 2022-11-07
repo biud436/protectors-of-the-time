@@ -2,6 +2,8 @@
 <h1>PROTECTORS OF THE TIME</h1>
 </p>
 
+protectors of the time
+
 # Introduction
 
 This tool allows you to start up the browser automatically and control it by sending commands for watching video. It is useful for testing web applications.
@@ -38,4 +40,6 @@ and then next click the button named `(매크로시작)`.
 # Dependencies
 
 -   [Selenium](https://www.selenium.dev/)
+-   [Express](https://expressjs.com/)
+-   [Node.js](https://nodejs.org/)
 -   [Socket.io](https://socket.io/)
