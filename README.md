@@ -1,3 +1,7 @@
+<p align="center">
+<h1>PROTECTORS OF THE TIME</h1>
+</p>
+
 # Introduction
 
 This tool allows you to start up the browser automatically and control it by sending commands for watching video. It is useful for testing web applications.
